@@ -1,44 +1,45 @@
-name: Run Selenium Tests
+from selenium_recaptcha_solver import RecaptchaSolver
+from selenium.webdriver.common.by import By
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
 
-on: [push, pull_request]
+# Path to ChromeDriver
+chrome_driver_path = "/home/runner/.local/bin/chromedriver"
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
+# Set up Chrome options
+options = Options()
+options.add_argument("--headless")  # Remove this if you want to see the browser (Headless makes the chromedriver not have a GUI)
+options.add_argument("--window-size=1920,1080")
+options.add_argument(f'--user-agent=Mozilla/5.0 (Windows NT 4.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2049.0 Safari/537.36')
+options.add_argument('--no-sandbox')
+options.add_argument("--disable-extensions")
+options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
+options.add_argument("--disable-gpu")  # applicable to windows os only so you can remove it
 
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+# Set up Chrome service
+service = Service(chrome_driver_path)
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.9'  # Specify the Python version you need
+# Initialize the Chrome driver with the Service object
+test_driver = webdriver.Chrome(service=service, options=options)
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install selenium selenium_recaptcha_solver
+try:
+    # Initialize the RecaptchaSolver
+    solver = RecaptchaSolver(driver=test_driver)
 
-    - name: Install Chrome
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y wget unzip xvfb libxi6 libgconf-2-4
-        wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-        sudo dpkg -i google-chrome-stable_current_amd64.deb || sudo apt-get -f install -y
-        wget -O /tmp/chromedriver.zip https://chromedriver.storage.googleapis.com/$(curl -s https://chromedriver.storage.googleapis.com/LATEST_RELEASE)/chromedriver_linux64.zip
-        unzip /tmp/chromedriver.zip -d $HOME/.local/bin/
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
+    # Open the webpage with reCAPTCHA
+    test_driver.get('https://www.google.com/recaptcha/api2/demo')
 
-    - name: Run Selenium script
-      run: |
-        xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' python x.py
-      env:
-        PATH: ${{ secrets.CHROMEDRIVER_PATH }}:$PATH
+    # Find the reCAPTCHA iframe
+    recaptcha_iframe = test_driver.find_element(By.XPATH, '//iframe[@title="reCAPTCHA"]')
 
-    - name: Upload screenshot
-      if: success()
-      uses: actions/upload-artifact@v2
-      with:
-        name: screenshot
-        path: screenshot.png
+    # Click the reCAPTCHA checkbox
+    solver.click_recaptcha_v2(iframe=recaptcha_iframe)
+
+    # Take a screenshot after solving reCAPTCHA
+    test_driver.save_screenshot('screenshot.png')
+    print("Screenshot saved as 'screenshot.png'")
+    
+finally:
+    # Clean up
+    test_driver.quit()

@@ -1,0 +1,41 @@
+name: Run Selenium Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'  # Specify the Python version you need
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install selenium selenium_recaptcha_solver
+
+    - name: Download ChromeDriver
+      run: |
+        sudo apt-get install -y unzip
+        wget -O /tmp/chromedriver.zip https://chromedriver.storage.googleapis.com/$(curl -s https://chromedriver.storage.googleapis.com/LATEST_RELEASE)/chromedriver_linux64.zip
+        unzip /tmp/chromedriver.zip -d $HOME/.local/bin/
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Run Selenium script
+      run: |
+        python x.py
+      env:
+        PATH: ${{ secrets.CHROMEDRIVER_PATH }}:$PATH
+
+    - name: Upload screenshot
+      if: success()
+      uses: actions/upload-artifact@v2
+      with:
+        name: screenshot
+        path: screenshot.png

@@ -20,16 +20,19 @@ jobs:
         python -m pip install --upgrade pip
         pip install selenium selenium_recaptcha_solver
 
-    - name: Download ChromeDriver
+    - name: Install Chrome
       run: |
-        sudo apt-get install -y unzip
+        sudo apt-get update
+        sudo apt-get install -y wget unzip xvfb libxi6 libgconf-2-4
+        wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+        sudo dpkg -i google-chrome-stable_current_amd64.deb || sudo apt-get -f install -y
         wget -O /tmp/chromedriver.zip https://chromedriver.storage.googleapis.com/$(curl -s https://chromedriver.storage.googleapis.com/LATEST_RELEASE)/chromedriver_linux64.zip
         unzip /tmp/chromedriver.zip -d $HOME/.local/bin/
         echo "$HOME/.local/bin" >> $GITHUB_PATH
 
     - name: Run Selenium script
       run: |
-        python x.py
+        xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' python x.py
       env:
         PATH: ${{ secrets.CHROMEDRIVER_PATH }}:$PATH
 
